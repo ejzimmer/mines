@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Minesweeper</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      display: flex;
+    }
+    #board {
+      --tile-size: 50px;
+      display: grid;
+      grid-template: repeat(10, var(--tile-size)) / repeat(10, var(--tile-size));
+      margin: auto;
+      position: relative;
+    }
+    #board button {
+      width: 100%; 
+      height: 100%;
+      padding: 0;
+    }
+    .mine {
+      color: red;
+      background: grey;
+    }
+    .clear {
+      border: none;
+    }
+    #done {
+      display: none;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 1em;
+    }
+    #done button {
+      margin-top: 1em;
+    }
+  </style>
+</head>
+<body>
+  <div id="board">
+    <div id="done">
+      <div></div>
+      <button>Play again?</button>
+    </div>
+  </div>
+  <script>
+    const board = document.getElementById('board');
+    const endMessage = document.getElementById('done');
+    const restartButton = endMessage.querySelector('button');
+
+    const tiles = [];
+    for (let i = 0; i < 100; i++) {
+      const tile = document.createElement('button');
+      tile.row = Math.floor(i / 10);
+      tile.column = i % 10;
+
+      board.appendChild(tile);
+      tiles.push(tile);
+    }
+
+    function setMines() {
+      let numberOfMines = 0;
+      while(numberOfMines < 10) {
+        const position = Math.round(Math.random() * 99);
+        const tile = tiles[position];
+        if (!tiles[position].isMine) {
+          tiles[position].isMine = true;
+          numberOfMines++;
+        }
+      }
+    }
+    setMines();
+
+
+    board.addEventListener('click', (event) => {
+      const tile = event.target;
+      if (tile.isMine) {
+        gameOver();
+      } else {
+        setProximities(tile);
+        checkWinCondition();
+      }
+    });
+
+    tiles.forEach((tile) => {
+      tile.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+
+        const text = event.target.textContent;
+        event.target.textContent = !text ? '#' : text === '#' ? '?' : '';
+      });
+    });
+
+    function setProximities(tile) {
+      const checkNeighbours = () => {
+        if (tilesToCheck.size === 0) { return; }
+
+        const tile = tilesToCheck.values().next().value;
+        const neighbours = getNeighbours(tile);
+        const mines = countMines(tile);
+
+        tile.classList.add('clear');
+
+        if (mines > 0) {
+          tile.textContent = mines;
+        } else {
+          neighbours.filter(n => !n.textContent && !n.alreadyChecked)
+                    .forEach(n => tilesToCheck.add(n));
+        }
+
+        tilesToCheck.delete(tile);
+        tile.alreadyChecked = true;
+        checkNeighbours();
+      }
+
+      const mines = countMines(tile);
+      const tilesToCheck = new Set(getNeighbours(tile));
+      tile.classList.add('clear');
+      if (mines === 0) {
+        checkNeighbours();
+      } else {
+        tile.textContent = mines;
+      }
+    }
+
+    function getNeighbours(tile) {
+      let neighbours = [];
+
+      const startRow = Math.max(tile.row - 1, 0);
+      const endRow = Math.min(tile.row + 1, 9);
+      const startColumn = Math.max(tile.column - 1, 0);
+      const endColumn = Math.min(tile.column + 1, 9);
+
+      for (let row = startRow; row <= endRow; row++) {
+        for (let column = startColumn; column <= endColumn; column++) {
+          const position = row * 10 + column;
+          const t = tiles[position];
+          if (t !== tile) {
+            neighbours.push(t);
+          }
+        }
+      }
+
+      return neighbours;
+    }
+
+    const countMines = (tile) => getNeighbours(tile).reduce((acc, curr) => curr.isMine ? ++acc : acc, 0);
+
+    function checkWinCondition() {
+      const clearTiles = document.querySelectorAll('button.clear');
+      if (clearTiles.length === 90) {
+        showEndMessage('winner!')
+      }
+    }
+
+    function gameOver() {
+      tiles.forEach((tile) => {
+        tile.disabled = true;
+        if (tile.textContent || tile.alreadyChecked) { return; }
+        
+        if (tile.isMine) {
+          tile.textContent = 'x';
+          tile.classList.add('mine');
+        }
+      });
+
+      showEndMessage('game over');
+    }
+
+    function showEndMessage(message) {
+      endMessage.querySelector('div').textContent = message;
+      endMessage.style.display = 'block';
+    }
+
+    restartButton.addEventListener('click', restartGame);
+    
+    function restartGame() {
+      clearTiles();
+      setMines();
+    }
+
+    function clearTiles() {
+      tiles.forEach((tile) => {
+        tile.isMine = false;
+        tile.alreadyChecked = false;
+        tile.classList.remove('mine');
+        tile.classList.remove('clear');
+        tile.classList.remove('counted');
+        tile.textContent = '';
+        tile.disabled = false;
+
+        endMessage.style.display = 'none';
+      })
+    }
+  </script>
+</body>
+</html>
